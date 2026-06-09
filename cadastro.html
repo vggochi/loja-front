@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B7Store - Admin: Cadastrar Produto</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 font-sans min-h-screen pb-12">
+
+    <header class="bg-white border-b border-slate-100 px-6 py-4 mb-10">
+        <div class="mx-auto flex max-w-screen-xl items-center justify-between">
+            <h1 class="text-xl font-bold text-slate-900">B7Store Admin</h1>
+            <div class="flex gap-4">
+                <span id="admin-nome" class="text-sm text-slate-600">👑 Administrador</span>
+                <button id="btn-logout" class="text-sm font-medium text-rose-600 hover:underline">Sair do Painel</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-6 grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <!-- Formulário de Cadastro/Edição -->
+        <div class="rounded-3xl bg-white p-8 shadow-sm border border-slate-100 lg:col-span-1 h-fit">
+            <h2 id="form-title" class="text-2xl font-bold tracking-tight text-slate-900 mb-6">Novo Produto</h2>
+            
+            <form id="produto-form" class="space-y-5">
+                <input type="hidden" id="produto-id" value="">
+                
+                <div>
+                    <label for="prod-nome" class="block text-sm font-medium text-slate-700">Nome do Produto *</label>
+                    <input type="text" id="prod-nome" placeholder="Ex: Camiseta Nike Concept" required 
+                        class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm outline-none focus:border-slate-400 focus:bg-white">
+                </div>
+                
+                <div>
+                    <label for="prod-preco" class="block text-sm font-medium text-slate-700">Preço (R$) *</label>
+                    <input type="number" step="0.01" id="prod-preco" placeholder="Ex: 149.90" required 
+                        class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm outline-none focus:border-slate-400 focus:bg-white">
+                </div>
+                
+                <div>
+                    <label for="prod-imagem" class="block text-sm font-medium text-slate-700">URL da Imagem</label>
+                    <input type="url" id="prod-imagem" placeholder="https://exemplo.com/foto.jpg" 
+                        class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm outline-none focus:border-slate-400 focus:bg-white">
+                </div>
+                
+                <div>
+                    <label for="prod-info" class="block text-sm font-medium text-slate-700">Tag/Destaque</label>
+                    <input type="text" id="prod-info" placeholder="Ex: 10% OFF, Lançamento" 
+                        class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm outline-none focus:border-slate-400 focus:bg-white">
+                </div>
+
+                <button type="submit" id="btn-submit" 
+                    class="w-full rounded-2xl bg-slate-950 p-4 text-sm font-semibold text-white transition hover:bg-slate-800">
+                    Cadastrar Produto
+                </button>
+                
+                <button type="button" id="btn-cancelar" 
+                    class="w-full rounded-2xl border border-slate-300 p-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hidden">
+                    Cancelar Edição
+                </button>
+            </form>
+        </div>
+
+        <!-- Lista de Produtos -->
+        <div class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 lg:col-span-2 overflow-hidden">
+            <h3 class="text-lg font-bold text-slate-900 mb-4">Produtos Cadastrados</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-400 bg-slate-50">
+                            <th class="px-4 py-3">Produto</th>
+                            <th class="px-4 py-3">Preço</th>
+                            <th class="px-4 py-3">Tag</th>
+                            <th class="px-4 py-3 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-produtos" class="divide-y divide-slate-100">
+                        <tr><td colspan="4" class="px-4 py-4 text-center text-slate-400 text-sm">🔄 Carregando produtos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div id="modal-excluir" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-slate-900 mb-4">Confirmar Exclusão</h3>
+            <p class="text-slate-600 mb-6">Tem certeza que deseja excluir o produto "<span id="produto-nome-excluir"></span>"?</p>
+            <div class="flex gap-3">
+                <button id="confirmar-excluir" class="flex-1 bg-rose-600 text-white py-3 rounded-2xl font-semibold hover:bg-rose-700">
+                    Sim, Excluir
+                </button>
+                <button id="cancelar-excluir" class="flex-1 border border-slate-300 py-3 rounded-2xl font-semibold hover:bg-slate-50">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = "https://loja-back-eight.vercel.app";
+        const token = localStorage.getItem('b7store_token');
+
+        if (!token) {
+            alert('🚫 Acesso restrito! Faça login primeiro.');
+            window.location.href = 'login.html';
+        }
+
+        // Elementos
+        const form = document.getElementById('produto-form');
+        const formTitle = document.getElementById('form-title');
+        const btnSubmit = document.getElementById('btn-submit');
+        const btnCancelar = document.getElementById('btn-cancelar');
+        const produtoIdInput = document.getElementById('produto-id');
+        const nomeInput = document.getElementById('prod-nome');
+        const precoInput = document.getElementById('prod-preco');
+        const imagemInput = document.getElementById('prod-imagem');
+        const infoInput = document.getElementById('prod-info');
+        const tbody = document.getElementById('lista-produtos');
+        
+        let produtoEditandoId = null;
+
+        // =============================================================
+        // LISTAR PRODUTOS
+        // =============================================================
+        async function listarProdutos() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/produtos`);
+                const produtos = await res.json();
+                tbody.innerHTML = "";
+
+                if (!Array.isArray(produtos) || produtos.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum produto cadastrado ainda.</td></tr>`;
+                    return;
+                }
+
+                produtos.forEach(prod => {
+                    const preco = Number(prod.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const tr = document.createElement('tr');
+                    tr.className = "text-sm text-slate-700 hover:bg-slate-50";
+                    tr.innerHTML = `
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <img src="${prod.imagem_url || 'https://placehold.co/40'}" class="h-10 w-10 rounded-lg object-cover bg-slate-100" onerror="this.src='https://placehold.co/40'">
+                                <span class="font-medium text-slate-900 line-clamp-1">${prod.nome}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 font-semibold">${preco}</td>
+                        <td class="px-4 py-3"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs">${prod.info || '-'}</span></td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex gap-2 justify-center">
+                                <button onclick="editarProduto('${prod.id}', '${prod.nome.replace(/'/g, "\\'")}', '${prod.preco}', '${prod.imagem_url || ''}', '${prod.info || ''}')" 
+                                        class="text-blue-600 hover:text-blue-800 transition" title="Editar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                    </svg>
+                                </button>
+                                <button onclick="abrirModalExcluir('${prod.id}', '${prod.nome.replace(/'/g, "\\'")}')" 
+                                        class="text-rose-600 hover:text-rose-800 transition" title="Excluir">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) { 
+                console.error('Erro ao listar produtos:', err);
+                tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500 text-sm">Erro ao carregar produtos</td></tr>`;
+            }
+        }
+
+        // =============================================================
+        // EDITAR PRODUTO
+        // =============================================================
+        window.editarProduto = function(id, nome, preco, imagem_url, info) {
+            console.log('Editando produto:', { id, nome, preco });
+            
+            produtoEditandoId = id;
+            produtoIdInput.value = id;
+            nomeInput.value = nome;
+            precoInput.value = preco;
+            imagemInput.value = imagem_url || '';
+            infoInput.value = info || '';
+            
+            formTitle.textContent = '✏️ Editar Produto';
+            btnSubmit.textContent = 'Atualizar Produto';
+            btnCancelar.classList.remove('hidden');
+            
+            document.querySelector('.lg\\:col-span-1').scrollIntoView({ behavior: 'smooth' });
+        };
+        
+        // Cancelar edição
+        btnCancelar.addEventListener('click', () => {
+            resetarFormulario();
+        });
+        
+        function resetarFormulario() {
+            produtoEditandoId = null;
+            produtoIdInput.value = '';
+            nomeInput.value = '';
+            precoInput.value = '';
+            imagemInput.value = '';
+            infoInput.value = '';
+            
+            formTitle.textContent = 'Novo Produto';
+            btnSubmit.textContent = 'Cadastrar Produto';
+            btnCancelar.classList.add('hidden');
+        }
+
+        // =============================================================
+        // EXCLUIR PRODUTO
+        // =============================================================
+        let produtoParaExcluir = null;
+        const modalExcluir = document.getElementById('modal-excluir');
+        const produtoNomeExcluir = document.getElementById('produto-nome-excluir');
+        const confirmarExcluir = document.getElementById('confirmar-excluir');
+        const cancelarExcluir = document.getElementById('cancelar-excluir');
+        
+        window.abrirModalExcluir = function(id, nome) {
+            produtoParaExcluir = id;
+            produtoNomeExcluir.textContent = nome;
+            modalExcluir.classList.remove('hidden');
+        };
+        
+        async function excluirProduto() {
+            if (!produtoParaExcluir) return;
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/produtos/${produtoParaExcluir}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (res.ok) {
+                    alert('✅ Produto excluído com sucesso!');
+                    listarProdutos();
+                    resetarFormulario();
+                } else {
+                    const data = await res.json();
+                    alert(data.mensagem || 'Erro ao excluir produto');
+                }
+            } catch (err) {
+                console.error('Erro:', err);
+                alert('Erro ao excluir produto');
+            } finally {
+                fecharModal();
+            }
+        }
+        
+        function fecharModal() {
+            modalExcluir.classList.add('hidden');
+            produtoParaExcluir = null;
+        }
+        
+        confirmarExcluir.addEventListener('click', excluirProduto);
+        cancelarExcluir.addEventListener('click', fecharModal);
+        
+        modalExcluir.addEventListener('click', (e) => {
+            if (e.target === modalExcluir) fecharModal();
+        });
+
+        // =============================================================
+        // CADASTRAR / ATUALIZAR PRODUTO
+        // =============================================================
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const payload = {
+                nome: nomeInput.value,
+                preco: parseFloat(precoInput.value),
+                imagem_url: imagemInput.value,
+                info: infoInput.value
+            };
+
+            if (!payload.nome || !payload.preco) {
+                alert('⚠️ Por favor, preencha o nome e o preço do produto!');
+                return;
+            }
+            
+            const isEditando = produtoEditandoId !== null;
+            const url = isEditando 
+                ? `${API_BASE_URL}/api/produtos/${produtoEditandoId}`
+                : `${API_BASE_URL}/api/produtos`;
+            const method = isEditando ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const dados = await res.json();
+
+                if (!res.ok) {
+                    alert(dados.mensagem || dados.error || 'Erro ao salvar produto.');
+                    if (res.status === 401) {
+                        localStorage.removeItem('b7store_token');
+                        window.location.href = 'login.html';
+                    }
+                    return;
+                }
+
+                alert(isEditando ? '✅ Produto atualizado com sucesso!' : '✅ Produto cadastrado com sucesso!');
+                resetarFormulario();
+                listarProdutos();
+            } catch (err) {
+                console.error('Erro:', err);
+                alert('❌ Erro de conexão. Tente novamente.');
+            }
+        });
+
+        // =============================================================
+        // LOGOUT
+        // =============================================================
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            localStorage.removeItem('b7store_token');
+            window.location.href = 'login.html';
+        });
+
+        // INICIALIZAR
+        listarProdutos();
+    </script>
+</body>
+</html>

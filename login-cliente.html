@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B7Store - Login Cliente</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 font-sans flex min-h-screen items-center justify-center p-6">
+
+    <div class="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm border border-slate-100">
+        <div class="mb-8 text-center">
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">B7Store<span class="text-slate-400">.</span></h1>
+            <p class="mt-2 text-sm text-slate-500">Área do Cliente</p>
+        </div>
+
+        <form id="login-form" class="space-y-5">
+            <div>
+                <label for="email" class="block text-sm font-medium text-slate-700">E-mail</label>
+                <input type="email" id="email" required 
+                    class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm outline-none transition focus:border-slate-400 focus:bg-white">
+            </div>
+            
+            <div>
+                <label for="senha" class="block text-sm font-medium text-slate-700">Senha</label>
+                <input type="password" id="senha" required 
+                    class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm outline-none transition focus:border-slate-400 focus:bg-white">
+            </div>
+
+            <button type="submit" 
+                class="w-full rounded-2xl bg-slate-950 p-4 text-sm font-semibold text-white transition hover:bg-slate-800">
+                Entrar na Minha Conta
+            </button>
+        </form>
+        
+        <div class="mt-4 text-center">
+            <a href="register.html" class="text-sm text-slate-500 hover:underline">Não tem conta? Cadastre-se</a>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <a href="index.html" class="text-xs text-slate-400 hover:underline">← Voltar para a loja</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = "https://loja-back-eight.vercel.app";
+        const form = document.getElementById('login-form');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+
+            if (!email || !senha) {
+                alert('⚠️ Preencha e-mail e senha!');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clientes/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, senha })
+                });
+                
+                const dados = await res.json();
+
+                if (!res.ok) {
+                    alert(dados.mensagem || 'E-mail ou senha inválidos.');
+                    return;
+                }
+
+                localStorage.setItem('cliente_token', dados.token);
+                localStorage.setItem('cliente_nome', dados.cliente.nome);
+                alert('🎉 Login realizado com sucesso!');
+                window.location.href = 'index.html';
+            } catch (err) {
+                console.error('Erro:', err);
+                alert('❌ Erro de comunicação com o servidor.');
+            }
+        });
+    </script>
+</body>
+</html>

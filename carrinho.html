@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Carrinho - B7Store</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 font-sans">
+
+    <header class="bg-white shadow-sm">
+        <div class="mx-auto flex max-w-screen-xl items-center justify-between px-6 py-6">
+            <a href="index.html" class="text-2xl font-bold">B7Store<span class="text-slate-400">.</span></a>
+            <div class="flex gap-4">
+                <span id="user-nome" class="text-sm text-slate-600"></span>
+                <button id="logout-btn" class="text-sm text-rose-600 hover:underline">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-4xl px-6 py-12">
+        <h2 class="text-2xl font-bold text-slate-900 mb-8">Meu Carrinho</h2>
+        
+        <div id="carrinho-container"></div>
+        
+        <div id="finalizar-area" class="hidden mt-8 bg-white rounded-3xl p-6 border border-slate-100">
+            <h3 class="text-lg font-bold mb-4">Finalizar Compra</h3>
+            <form id="finalizar-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Endereço de entrega</label>
+                    <textarea id="endereco" rows="2" required
+                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Forma de pagamento</label>
+                    <select id="pagamento" required
+                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-sm">
+                        <option value="">Selecione</option>
+                        <option value="pix">PIX (10% OFF)</option>
+                        <option value="cartao">Cartão de Crédito</option>
+                        <option value="boleto">Boleto Bancário</option>
+                    </select>
+                </div>
+                <button type="submit"
+                    class="w-full rounded-2xl bg-emerald-600 p-4 text-sm font-semibold text-white hover:bg-emerald-700">
+                    Confirmar Pedido
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE_URL = "https://loja-back-eight.vercel.app";
+        const token = localStorage.getItem('cliente_token');
+        
+        if (!token) {
+            alert('Faça login para ver seu carrinho!');
+            window.location.href = 'login-cliente.html';
+        }
+        
+        const nome = localStorage.getItem('cliente_nome');
+        if (nome) document.getElementById('user-nome').innerText = `Olá, ${nome}`;
+        
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('cliente_token');
+            localStorage.removeItem('cliente_nome');
+            window.location.href = 'index.html';
+        });
+        
+        async function carregarCarrinho() {
+            const container = document.getElementById('carrinho-container');
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clientes/carrinho`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                
+                if (!data.sucesso || !data.itens.length) {
+                    container.innerHTML = `<div class="text-center py-12 text-slate-400">🛒 Seu carrinho está vazio</div>`;
+                    document.getElementById('finalizar-area').classList.add('hidden');
+                    return;
+                }
+                
+                let html = `<div class="space-y-4">`;
+                data.itens.forEach(item => {
+                    const subtotal = item.preco_unitario * item.quantidade;
+                    html += `
+                        <div class="bg-white rounded-2xl p-4 flex gap-4 items-center border border-slate-100">
+                            <img src="${item.produtos.imagem_url || 'https://placehold.co/80'}" class="w-20 h-20 object-cover rounded-xl">
+                            <div class="flex-1">
+                                <h3 class="font-semibold">${item.produtos.nome}</h3>
+                                <p class="text-sm text-slate-500">R$ ${item.preco_unitario.toFixed(2)} cada</p>
+                                <div class="flex items-center gap-3 mt-2">
+                                    <button onclick="alterarQuantidade('${item.id}', ${item.quantidade - 1})" 
+                                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200">-</button>
+                                    <span class="font-medium w-8 text-center">${item.quantidade}</span>
+                                    <button onclick="alterarQuantidade('${item.id}', ${item.quantidade + 1})" 
+                                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200">+</button>
+                                    <button onclick="removerItem('${item.id}')" 
+                                            class="ml-4 text-rose-500 hover:text-rose-700">Remover</button>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold">R$ ${subtotal.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>
+                    <div class="bg-white rounded-2xl p-4 mt-4 border-t-2">
+                        <p class="text-lg font-bold">Total: R$ ${data.total.toFixed(2)}</p>
+                        <p class="text-sm text-slate-500 mt-1">Total de itens: ${data.quantidadeTotal}</p>
+                    </div>
+                `;
+                container.innerHTML = html;
+                document.getElementById('finalizar-area').classList.remove('hidden');
+            } catch (err) {
+                container.innerHTML = `<div class="text-center py-12 text-red-500">Erro ao carregar carrinho</div>`;
+            }
+        }
+        
+        async function alterarQuantidade(itemId, novaQuantidade) {
+            if (novaQuantidade < 1) {
+                removerItem(itemId);
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clientes/carrinho/${itemId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ quantidade: novaQuantidade })
+                });
+                
+                if (res.ok) {
+                    carregarCarrinho();
+                    // Atualizar carrinho flutuante se existir
+                    if (window.carrinhoFlutuante) {
+                        window.carrinhoFlutuante.carregarCarrinho();
+                    }
+                }
+            } catch (err) {
+                alert('Erro ao alterar quantidade');
+            }
+        }
+        
+        async function removerItem(itemId) {
+            if (!confirm('Remover este item do carrinho?')) return;
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clientes/carrinho/${itemId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.ok) {
+                    carregarCarrinho();
+                    if (window.carrinhoFlutuante) {
+                        window.carrinhoFlutuante.carregarCarrinho();
+                    }
+                }
+            } catch (err) {
+                alert('Erro ao remover item');
+            }
+        }
+        
+        document.getElementById('finalizar-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            let total = 0;
+            const totalElement = document.querySelector('#carrinho-container .font-bold');
+            if (totalElement) {
+                total = parseFloat(totalElement.textContent.replace('R$ ', '').replace(',', '.'));
+            }
+            
+            let desconto = 0;
+            const pagamento = document.getElementById('pagamento').value;
+            if (pagamento === 'pix') {
+                desconto = total * 0.1;
+                if (confirm(`💳 Pagamento via PIX\nTotal: R$ ${total.toFixed(2)}\nDesconto: R$ ${desconto.toFixed(2)}\nValor final: R$ ${(total - desconto).toFixed(2)}\n\nConfirmar compra?`)) {
+                    // Segue com o pedido
+                } else {
+                    return;
+                }
+            }
+            
+            const dados = {
+                endereco_entrega: document.getElementById('endereco').value,
+                forma_pagamento: pagamento
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clientes/finalizar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(dados)
+                });
+                
+                const resposta = await res.json();
+                
+                if (!res.ok) {
+                    alert(resposta.mensagem || 'Erro ao finalizar');
+                    return;
+                }
+                
+                alert(`✅ Pedido ${resposta.pedido.numero} confirmado! Total: R$ ${resposta.pedido.total.toFixed(2)}`);
+                window.location.href = 'index.html';
+            } catch (err) {
+                alert('Erro ao finalizar compra');
+            }
+        });
+        
+        carregarCarrinho();
+    </script>
+    
+    <!-- Adicionar carrinho flutuante -->
+    <script src="carrinho-flutuante.js"></script>
+</body>
+</html>
